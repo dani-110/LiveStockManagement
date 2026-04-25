@@ -395,12 +395,12 @@ const App = () => {
             >
               Reports
             </button>
-            <button
+            {user == 'admin' && <button
               className={`nav-tab ${panel === 'expenses' ? 'active' : ''}`}
               onClick={() => setPanel('expenses')}
             >
               Expenses
-            </button>
+            </button>}
           </div>
         )}
 
