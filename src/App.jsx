@@ -60,7 +60,7 @@ const App = () => {
   const expenseTableRef = useRef();
 
   const API = axios.create({
-    baseURL: "http://116.90.108.83:89/api"
+    baseURL: "https://nkcm.nexoriasystems.com/api"
   });
 
   API.interceptors.request.use((config) => {
@@ -79,6 +79,7 @@ const App = () => {
       setIsLoggedIn(true);
       setPanel('main');
       fetchMembers(1);
+      setUser(localStorage.getItem('lv_user'));
     }
   }, []);
 
@@ -395,7 +396,7 @@ const App = () => {
             >
               Reports
             </button>
-            {user == 'admin' && <button
+            {user?.includes('admin') && <button
               className={`nav-tab ${panel === 'expenses' ? 'active' : ''}`}
               onClick={() => setPanel('expenses')}
             >
@@ -492,7 +493,7 @@ const App = () => {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>#</th><th>Name</th><th>S/O</th><th>CNIC</th><th>Block</th><th>Booking Type</th><th>Patte</th><th>Quantity</th></tr>
+                  <tr><th>#</th><th>Name</th><th>S/O</th><th>CNIC</th><th>Block</th><th>Booking Type</th><th>Patte NO.</th><th>Quantity</th></tr>
                 </thead>
                 <tbody>
                   {members.length > 0 ? members.map((m, index) => (
@@ -614,11 +615,11 @@ const App = () => {
                 onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
               >
                 <option value="">All Users</option>
-                <option value="1">guest_user1</option>
-                <option value="2">guest_user2</option>
-                <option value="3">guest_user3</option>
-                <option value="4">guest_user4</option>
-                <option value="5">guest_user5</option>
+                <option value="1">user1</option>
+                <option value="5">user2</option>
+                <option value="3">user3</option>
+                <option value="4">user4</option>
+                <option value="2">admin</option>
               </select>
             </div>
             <div className="filter-item">

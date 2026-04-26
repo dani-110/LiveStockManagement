@@ -16,6 +16,10 @@ export const block = [
         value: 'Block D',
     },
     {
+        name: 'Block E',
+        value: 'Block E',
+    },
+    {
         name: 'Block F',
         value: 'Block F',
     },
