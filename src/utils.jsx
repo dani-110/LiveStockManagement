@@ -30,7 +30,7 @@ export const bookingType = [
     //     value: 'Patte Half',
     // },
     {
-        name: 'Patte (پٹی)',
+        name: 'Patti (پٹی)',
         value: 'Patte Full',
     },
     {
@@ -68,22 +68,52 @@ export const expenseType = [
 export const users = [
     {
         value: 1,
-        name: "guest_user1"
+        name: "user1"
     },
     {
         value: 2,
-        name: "guest_user2"
+        name: "user2"
     },
     {
         value: 3,
-        name: "guest_user3"
+        name: "user3"
     },
     {
         value: 4,
-        name: "guest_user4"
+        name: "user4"
     },
     {
         value: 5,
-        name: "guest_user5"
+        name: "user5"
     },
 ]
+// export const users = [
+//     {
+//         value: 6,
+//         name: "user1"
+//     },
+//     {
+//         value: 7,
+//         name: "user2"
+//     },
+//     {
+//         value: 8,
+//         name: "user3"
+//     },
+//     {
+//         value: 9,
+//         name: "user4"
+//     },
+//     {
+//         value: 10,
+//         name: "admin1"
+//     },
+//     {
+//         value: 11,
+//         name: "admin2"
+//     },
+//     {
+//         value: 12,
+//         name: "admin3"
+//     },
+// ]

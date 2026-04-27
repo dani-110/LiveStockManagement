@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import html2pdf from 'html2pdf.js';
-import { FaUsers, FaPlus, FaSignOutAlt, FaChevronLeft, FaChevronRight, FaClipboardList, FaCashRegister } from 'react-icons/fa';
+import { FaUsers, FaPlus, FaSignOutAlt, FaChevronLeft, FaChevronRight, FaClipboardList, FaCashRegister, FaRegTrashAlt } from 'react-icons/fa';
 import { FaFilePdf, FaPrint, FaMoneyBillWave, FaCalendarAlt, FaUser } from 'react-icons/fa';
 import './App.css';
 import { block, bookingType, expenseType, users } from './utils';
-import { FaCow } from 'react-icons/fa6';
+import locationImg from './assest/location.jpeg';
 
 const App = () => {
   const [panel, setPanel] = useState('login');
@@ -13,6 +13,7 @@ const App = () => {
   const [user, setUser] = useState('');
   const [members, setMembers] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [patteNumbers, setPatteNumbers] = useState(['']);
   const [expenseDetail, setExpenseDetail] = useState({
     totalEarning: 0,
     totalExpense: 0,
@@ -22,18 +23,11 @@ const App = () => {
   const [showMForm, setShowMForm] = useState(false);
   const [showEForm, setShowEForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPatteModal, setshowPatteModal] = useState(false);
   const [loginCreds, setLoginCreds] = useState({ username: '', password: '' });
   const [pageSize, setPageSize] = useState(10);
   const [type, setType] = useState('');
   const [pageInfo, setPageInfo] = useState({
-    totalRecords: 0,
-    totalPages: 1,
-    currentPage: 1,
-    pageSize: 10,
-    hasNextPage: false,
-    hasPreviousPage: false
-  });
-  const [expensePageInfo, setExpensePageInfo] = useState({
     totalRecords: 0,
     totalPages: 1,
     currentPage: 1,
@@ -55,12 +49,18 @@ const App = () => {
   const [reportData, setReportData] = useState(null);
   const reportRef = useRef();
   const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsDataCount, setAnalyticsDataCount] = useState({
+    totalCow: 0,
+    totalGoat: 0,
+    totalPatte: 0,
+  });
 
   const reportsTableRef = useRef();
   const expenseTableRef = useRef();
 
   const API = axios.create({
-    baseURL: "https://nkcm.nexoriasystems.com/api"
+    // baseURL: "https://nkcm.nexoriasystems.com/api"
+    baseURL: "http://116.90.108.83:89/api"
   });
 
   API.interceptors.request.use((config) => {
@@ -72,8 +72,6 @@ const App = () => {
   });
 
   useEffect(() => {
-    const utcNow = new Date().toISOString();
-    console.log(utcNow);
     const token = localStorage.getItem('lv_token');
     if (token) {
       setIsLoggedIn(true);
@@ -105,18 +103,37 @@ const App = () => {
   };
 
   const fetchReport = async () => {
-    console.log(filters.dateFrom)
+    console.log(new Date(filters.dateFrom).toISOString())
     setLoading(true);
     try {
       const res = await API.get(`/members/report`, {
         params: {
           userId: filters.userId,
-          dateFrom: filters.dateFrom,
-          dateTo: filters.dateTo,
+          dateFrom: new Date(filters.dateFrom).toISOString(),
+          dateTo: new Date(filters.dateTo).toISOString(),
           cnic: filters.cnic,
           bookingtype: filters.bookingtype,
         }
       });
+      console.log(res.data.data.filter(val => val.bookingType == 'Cow'))
+      const arr = res?.data?.data
+        ?.filter(val => val?.bookingType === 'Patte Full')
+        .map(e => {
+          try {
+            return JSON.parse(e.patte);
+          } catch {
+            return []; // invalid JSON ho to skip
+          }
+        });
+
+      console.log(res?.data?.data?.filter(val => val.bookingType == 'Cow').length, arr?.flat().length)
+
+
+      setAnalyticsDataCount({
+        totalCow: res?.data?.data?.filter(val => val.bookingType == 'Cow').length,
+        totalGoat: res?.data?.data?.filter(val => val.bookingType == 'Goat').length,
+        totalPatte: arr?.flat().length,
+      })
       setAnalyticsData(res.data); // Yahan change kiya
     } catch (error) {
       console.error("Report fetch error", error);
@@ -160,19 +177,21 @@ const App = () => {
     setLoading(true);
     const formData = new FormData(e.target);
     const user = await localStorage.getItem('lv_user');
+
+    console.log(user, users, patteNumbers.filter(val => val != ''))
     const payload = {
       fullname: formData.get('fullname') || '',
       fathername: formData.get('fathername') || '',
       cnic: formData.get('cnic') || '',
       Block: formData.get('Block') || '',
       BookingType: formData.get('BookingType') || '',
-      patte: formData.get('patte') || '',
+      patte: JSON.stringify(patteNumbers.filter(val => val != '')) || '',
       cellno: formData.get('cellno') || '',
       amount: parseFloat(formData.get('amount')) || 0,
       cowQuantity: parseInt(formData.get('cowQuantity')) || 0,
-      createdby: users?.find(val => val.name == user).value
+      createdby: await users?.find(val => val.name == user).value
     };
-    console.log(user, payload)
+    console.log(payload)
     try {
       const res = await API.post("/members", payload);
       console.log(res);
@@ -181,13 +200,22 @@ const App = () => {
         ...res.data?.data,
         createdByName: res.data.createdByName
       }
+      setType('')
+      setPatteNumbers([])
       setReportData(obj);
       setShowMForm(false);
       fetchMembers(pageInfo.currentPage);
 
     } catch (error) {
-      handleLogout();
-      alert("Your session is expired please re-login.");
+      console.log(error.status)
+      if (error.response.status == 401) {
+        handleLogout();
+        alert("Your session is expired please re-login.");
+      } else if (error.response.status == 400) {
+        alert(error?.response?.data?.error);
+      } else {
+        alert("Something went wrong.");
+      }
     } finally {
       setLoading(false);
     }
@@ -256,6 +284,20 @@ const App = () => {
   // 3. Print Logic
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSlipPrint = (m) => {
+    setReportData(m);
+
+    setTimeout(() => {
+      const printContents = document.getElementById('print-slip').innerHTML;
+      const original = document.body.innerHTML;
+
+      document.body.innerHTML = printContents;
+      window.print();
+      document.body.innerHTML = original;
+      window.location.reload();
+    }, 100);
   };
 
 
@@ -370,6 +412,9 @@ const App = () => {
     window.location.reload(); // State wapas lane ke liye reload zaroori hai is method mein
   };
 
+  const addMorePatteNumber = () => {
+    setPatteNumbers(prev => [...prev, ''])
+  }
   return (
     <div className="livestock-app">
       <div className="topnav">
@@ -452,11 +497,11 @@ const App = () => {
                   <div className="fg"><label>Father Name  (والد کا نام)</label><input name="fathername" /></div>
                   <div className="fg">
                     <label>CNIC (Max 11 - 13)  (شناختی نمبر)</label>
-                    <input name="cnic" type="number" onInput={(e) => e.target.value = e.target.value.slice(0, 13)} />
+                    <input name="cnic" type="number" onInput={(e) => e.target.value = e.target.value.slice(0, 13)} required />
                   </div>
 
-                  <div className="fg"><label>Cell No  (فون نمبر)</label><input name="cellno" type="number" /></div>
-                  <div className="fg select-box "><label>Block  (بلاک)</label><select name="Block">
+                  <div className="fg"><label>Cell No  (فون نمبر)</label><input name="cellno" type="number" required /></div>
+                  <div className="fg select-box "><label>Block  (بلاک)</label><select name="Block" required>
                     <option value="">Select Block</option>
                     {block.map((item) => (
                       <option key={item.value} value={item.value}>
@@ -480,8 +525,8 @@ const App = () => {
                       </option>
                     ))}
                   </select></div>
-                  <div className="fg"><label>Amount  (رقم)</label><input name="amount" type="number" min="0" /></div>
-                  {type?.includes('Patte') && <div className="fg"><label>Patte NO.  (پٹی نمبر)</label><input name="patte" type="number" min="0" /></div>}
+                  <div className="fg"><label>Amount  (رقم)</label><input name="amount" type="number" min="0" required /></div>
+                  {type?.includes('Patte') && <div className="fg"><label>Patti NO.  (پٹی نمبر)</label><input value={patteNumbers?.join(',')} onClick={() => setshowPatteModal(prev => !prev)} /></div>}
                   {(type == 'Cow' || type == 'Goat') && <div className="fg"><label>Quantity  (تعداد)</label><input name="cowQuantity" type="number" min="0" /></div>}
                 </div>
                 <button type="submit" className="btn-save" disabled={loading} style={{ marginTop: '10px' }}>
@@ -493,7 +538,7 @@ const App = () => {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>#</th><th>Name</th><th>S/O</th><th>CNIC</th><th>Block</th><th>Booking Type</th><th>Patte NO.</th><th>Quantity</th></tr>
+                  <tr><th>#</th><th>Name</th><th>S/O</th><th>CNIC</th><th>Block</th><th>Booking Type</th><th>Patti NO.</th><th>Quantity</th><th>print</th></tr>
                 </thead>
                 <tbody>
                   {members.length > 0 ? members.map((m, index) => (
@@ -503,9 +548,10 @@ const App = () => {
                       <td>{m.fathername}</td>
                       <td>{m.cnic}</td>
                       <td>{m.block}</td>
-                      <td>{m.bookingType == 'Patte Full' ? 'Patte' : m.bookingType}</td>
-                      <td>{m.patte}</td>
+                      <td>{m.bookingType == 'Patte Full' ? 'Patti' : m.bookingType}</td>
+                      <td>{Array.isArray(JSON.parse(m.patte)) ? JSON.parse(m.patte)?.join(',') : m.patte}</td>
                       <td>{m.cowQuantity}</td>
+                      <td><button className="btn-print" onClick={() => handleSlipPrint(m)}>Print</button></td>
                     </tr>
                   )) : (
                     <tr><td colSpan="6" className="empty-row">No members found</td></tr>
@@ -513,6 +559,7 @@ const App = () => {
                 </tbody>
               </table>
             </div>
+
 
             {/* Pagination UI at Bottom */}
             <div className="pagination-footer">
@@ -541,6 +588,42 @@ const App = () => {
         </div>
       )}
 
+      {
+        showPatteModal && <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="report-container" >
+              <div className="report-header">
+                <h2>Add Patti Numbers here</h2>
+              </div>
+              {
+                patteNumbers.length > 0 && patteNumbers.map((e, i) => (
+                  <div style={{ display: 'flex', alignItems: 'end', gap: '10px' }}>
+                    <div className="fg" style={{ width: '90%' }}><label>Patti NO.  (پٹی نمبر)</label><input value={e}
+                      onChange={(j) => {
+                        console.log(j.target.value, patteNumbers, e)
+                        setPatteNumbers(prev => {
+                          let arr = [...prev]
+                          arr[i] = j.target.value
+                          return arr
+                        })
+                      }}
+                      name="patte" type="number" min="0" /></div>
+                    {i != 0 && <div style={{ margin: '0px 0px 5px' }} onClick={() => setPatteNumbers(prev => prev.filter((_, index) => index !== i))}>
+                      <FaRegTrashAlt color='red' />
+                    </div>}
+                  </div>
+                ))
+              }
+
+              <div className="patteModal-actions">
+                <button className="btn-print" onClick={addMorePatteNumber}>Add More</button>
+                <button className="btn-print" onClick={() => setshowPatteModal(prev => !prev)}>Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
 
       {/* SUCCESS MODAL / REPORT */}
       {reportData && (
@@ -554,7 +637,9 @@ const App = () => {
               </div>
 
               <div className="report-body">
-                <div className="booking-type"><strong>Booking Type:</strong> {reportData.bookingType == 'Patte Full' ? 'Patte' : reportData.bookingType}</div>
+                <div className="booking-type">
+                  <h1>{bookingType?.find(val => val.value == reportData.bookingType)?.name} Slip</h1>
+                </div>
                 <div className="report-row">
                   <div className="report-col"><strong>Full Name  (نام):</strong> <span>{reportData.fullname}</span></div>
                   <div className="report-col"><strong>Father Name  (والد کا نام):</strong> <span>{reportData.fathername}</span></div>
@@ -566,7 +651,7 @@ const App = () => {
                 <div className="report-row">
                   <div className="report-col"><strong>Block  (بلاک):</strong> <span>{reportData.block}</span></div>
                   {(reportData?.bookingType == 'Cow' || reportData?.bookingType == 'Goat') && <div className="report-col"><strong>Quantity  (تعداد):</strong> <span>{reportData.cowQuantity}</span></div>}
-                  {reportData?.bookingType?.includes('Patte') && <div className="report-col"><strong>Patte No.  (پٹی نمبر):</strong> <span>{reportData?.patte}</span></div>}
+                  {reportData?.bookingType?.includes('Patte') && <div className="report-col"><strong>Patti No.  (پٹی نمبر):</strong> <span>{JSON.parse(reportData?.patte)?.join(',')}</span></div>}
                 </div>
                 <div className="report-row">
                   <div className="report-col"><strong>Amount  (رقم):</strong> <span>RS {reportData.amount?.toLocaleString()}</span></div>
@@ -575,6 +660,9 @@ const App = () => {
                 <div className="report-row">
                   <div className="report-col"><strong>Created By  (تیار کردہ از):</strong> <span>{reportData.createdByName}</span></div>
                 </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <img src={locationImg} style={{ height: '100px', width: '100px' }} />
               </div>
               <div className="report-footer">
                 <p>Car Bazar, Sector 11-D, New Karachi, Karachi</p>
@@ -638,7 +726,7 @@ const App = () => {
                 min={filters.dateFrom || undefined}
                 value={filters.dateTo}
                 onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                max={new Date().toISOString().split("T")[0]}
+                max={new Date().toLocaleDateString('en-CA')}
               />
             </div>
             <div className="filter-item">
@@ -680,9 +768,21 @@ const App = () => {
             </div>
             <div className="stat-card stat-card-3">
               <div className="stat-card-lbl">Total Cows</div>
-              <div className="stat-card-val">{analyticsData?.globalTotalCows}</div>
+              <div className="stat-card-val">{analyticsDataCount?.totalCow || 0}</div>
               {/* <div className="stat-card-icon"><FaCow /></div> */}
               <div class="stat-card-icon">🐄</div>
+            </div>
+            <div className="stat-card stat-card-1">
+              <div className="stat-card-lbl">Total Goat</div>
+              <div className="stat-card-val">{analyticsDataCount?.totalGoat || 0}</div>
+              {/* <div className="stat-card-icon"><FaCow /></div> */}
+              <div class="stat-card-icon">🐐</div>
+            </div>
+            <div className="stat-card stat-card-4">
+              <div className="stat-card-lbl">Total Patte</div>
+              <div className="stat-card-val">{analyticsDataCount?.totalPatte || 0}</div>
+              {/* <div className="stat-card-icon"><FaCow /></div> */}
+              <div class="stat-card-icon">🛤️</div>
             </div>
           </div>
 
@@ -711,7 +811,7 @@ const App = () => {
                     <th>Cell No</th>
                     <th>Block</th>
                     <th>Booking Type</th>
-                    <th>Patte No</th>
+                    <th>Patti No</th>
                     <th>Quantity</th>
                     <th>RS</th>
                     <th>Created By</th>
@@ -730,8 +830,8 @@ const App = () => {
                         <td>{item.cnic}</td>
                         <td>{item.cellno}</td>
                         <td>{item.block}</td>
-                        <td>{item.bookingType == 'Patte Full' ? 'Patte' : item.bookingType}</td>
-                        <td>{item.patte}</td>
+                        <td>{item.bookingType == 'Patte Full' ? 'Patti' : item.bookingType}</td>
+                        <td>{Array.isArray(JSON.parse(item.patte)) ? JSON.parse(item.patte)?.join(',') : item.patte}</td>
                         <td>{item.cowQuantity}</td>
                         <td>{item.amount.toLocaleString()}</td>
                         <td><span className="user-tag">{item.createdByName}</span></td>
