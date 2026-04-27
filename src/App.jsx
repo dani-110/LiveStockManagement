@@ -59,8 +59,8 @@ const App = () => {
   const expenseTableRef = useRef();
 
   const API = axios.create({
-    // baseURL: "https://nkcm.nexoriasystems.com/api"
-    baseURL: "http://116.90.108.83:89/api"
+    baseURL: "https://nkcm.nexoriasystems.com/api"
+    // baseURL: "http://116.90.108.83:89/api"
   });
 
   API.interceptors.request.use((config) => {
@@ -103,14 +103,13 @@ const App = () => {
   };
 
   const fetchReport = async () => {
-    console.log(new Date(filters.dateFrom).toISOString())
     setLoading(true);
     try {
       const res = await API.get(`/members/report`, {
         params: {
           userId: filters.userId,
-          dateFrom: new Date(filters.dateFrom).toISOString(),
-          dateTo: new Date(filters.dateTo).toISOString(),
+          dateFrom: filters.dateFrom ? new Date(filters.dateFrom).toISOString() : '',
+          dateTo: filters.dateTo ? new Date(filters.dateTo).toISOString() : '',
           cnic: filters.cnic,
           bookingtype: filters.bookingtype,
         }

@@ -72,7 +72,7 @@ export const users = [
     },
     {
         value: 2,
-        name: "user2"
+        name: "admin"
     },
     {
         value: 3,
@@ -84,7 +84,7 @@ export const users = [
     },
     {
         value: 5,
-        name: "user5"
+        name: "user2"
     },
 ]
 // export const users = [
